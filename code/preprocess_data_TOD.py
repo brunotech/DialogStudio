@@ -22,7 +22,7 @@ class PreProcessData(object):
 
     def _load_json(self, path=None):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = json.loads(df.read())
         return data
@@ -30,7 +30,7 @@ class PreProcessData(object):
     
     def _load_txt(self, path=None, split_tok="\n"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = df.read().strip().split(split_tok)
         return data
@@ -38,7 +38,7 @@ class PreProcessData(object):
 
     def _load_csv(self, path=None, sep="\t"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = pd.read_csv(df, sep=sep)
         return data
@@ -93,26 +93,25 @@ class PreProcessData(object):
 
 
     def init_dial(self, dial_idx=0):
-        dial = {
+        return {
             ORI_DIAL_ID: "",
             DIAL_IDX: dial_idx,
             ORI_DIAL_INFO: {},
             LOG: [],
             EK_ORI: {
-                TOD_EK:{},
-                DST_EK:{},
-                INTENT_EK:{},
+                TOD_EK: {},
+                DST_EK: {},
+                INTENT_EK: {},
             },
             EK: "",
             EK_DST: "",
             EK_INTENT: "",
             PROMPT: [],
         }
-        return dial
 
 
     def init_turn(self, turn_id=1, dial_hist=[]):
-        turn = {
+        return {
             TURN_ID: turn_id,
             USR_UTT: "",
             SYS_UTT: "",
@@ -122,7 +121,6 @@ class PreProcessData(object):
             DST: "",
             DST_ACC: "",
         }
-        return turn
 
 
     def save_dial(self, data, data_name="", file_idx=0, mode="train"):
@@ -257,9 +255,12 @@ class PreProcessData(object):
                             new_turn[USR_UTT] = " ".join(usr_utts)
                             new_turn[SYS_UTT] = sys_utts[-1] if sys_utts else " ".join(sys_utts)
                             new_dial[LOG].append(new_turn)
-                            dial_hist.append(f"<USER> {new_turn[USR_UTT]}")
-                            dial_hist.append(f"<SYSTEM> {new_turn[SYS_UTT]}")
-
+                            dial_hist.extend(
+                                (
+                                    f"<USER> {new_turn[USR_UTT]}",
+                                    f"<SYSTEM> {new_turn[SYS_UTT]}",
+                                )
+                            )
                             # new turn start from user
                             new_turn = self.init_turn(turn_id=turn_id)
                             turn_id += 1
@@ -296,13 +297,13 @@ class PreProcessData(object):
                             result_list.append(turn["slots"]["poi"])
                         elif "slots" in turn and "event" in turn["slots"]:
                             result_list.append(turn["slots"]["event"])
-                        
+
                 if usr_utts or sys_utts:
                     new_turn[USR_UTT] = " ".join(usr_utts)
                     new_turn[SYS_UTT] = sys_utts[-1] if sys_utts else " ".join(sys_utts)
                     new_dial[LOG].append(new_turn)
-                    
-                
+
+
                 # adding metadata for TOD task
                 new_dial[EK_ORI][TOD_EK][domain] = []
                 if dial["scenario"]["kb"]["items"] is not None:
@@ -333,7 +334,7 @@ class PreProcessData(object):
                     self.save_dial(new_data, data_name=data_name, file_idx=file_idx, mode=mode)
                     new_data = {} # reset
                     file_idx += 1
-    
+
             if mode == "train": self.save_original_examples(data[:5], data_name)
             print(f"finishing processing {len(data)} dialogs for {mode} set ...")
         self.save_converted_examples(data_name)

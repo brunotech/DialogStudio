@@ -20,8 +20,8 @@ class PreProcessData(object):
 
     def _load_json(self, path=None):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
-            # return None
+            raise IOError(f'File does not exist: {path}')
+                # return None
         with open(path) as df:
             data = json.loads(df.read())
         return data
@@ -29,7 +29,7 @@ class PreProcessData(object):
     
     def _load_txt(self, path=None, split_tok="\n"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = df.read().strip().split(split_tok)
         return data
@@ -37,7 +37,7 @@ class PreProcessData(object):
 
     def _load_csv(self, path=None, sep="\t"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = pd.read_csv(df, sep=sep)
         return data
@@ -45,11 +45,10 @@ class PreProcessData(object):
 
     def _load_jsonl(self, path=None):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         data = []
         with open(path) as df:
-            for line in df.readlines():
-                data.append(json.loads(line))
+            data.extend(json.loads(line) for line in df)
         return data
 
 
@@ -99,7 +98,7 @@ class PreProcessData(object):
 
 
     def init_dial(self, dial_idx=0, ori_dial_id=""):
-        dial = {
+        return {
             ORI_DIAL_ID: "",
             DIAL_IDX: dial_idx,
             ORI_DIAL_INFO: {},
@@ -110,11 +109,10 @@ class PreProcessData(object):
             # EK: "",
             PROMPT: [],
         }
-        return dial
 
 
     def init_turn(self, turn_id=0, dial_hist=[]):
-        turn = {
+        return {
             TURN_ID: int(turn_id),
             USR_UTT: "",
             SYS_UTT: "",
@@ -122,11 +120,10 @@ class PreProcessData(object):
             ORI_USR_ANN: {},
             ORI_SYS_ANN: {},
             EK_ORI: {
-                TOD_EK:{},
+                TOD_EK: {},
             },
             EK: "",
         }
-        return turn
 
 
     def save_dial(self, data, data_name="", file_idx=0, mode="train"):
@@ -178,8 +175,7 @@ class PreProcessData(object):
         """
         ek = str(ek_ori).replace("'"," ").replace(", "," | ")
         ek = ek.replace("{","(").replace("}",")").replace("[","(").replace("]",")")
-        ek = ek.replace("  ", " ")
-        return ek
+        return ek.replace("  ", " ")
 
 
     def wow(self):

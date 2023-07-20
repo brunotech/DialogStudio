@@ -223,7 +223,7 @@ def generate_prompt(data_name, domains, num_sample=1):
         description_str = descriptions[0]
     elif len(descriptions) == 2:
         description_str = " and ".join(descriptions)
-    elif len(descriptions) == 0:
+    elif not descriptions:
         description_str = "complete specified tasks"
     else:
         description_str = "complete multiple tasks, e.g. " + ", ".join(descriptions[:-1]) + ", and " + descriptions[-1]

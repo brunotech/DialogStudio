@@ -80,7 +80,7 @@ class EvaluateDialogs(object):
 
             data = open_json(os.path.join(folder_path, dataset_name, "train.json"))
             f_writer = open(os.path.join(folder_path, dataset_name, "train_quality_scores.json"), "w")
-            print("Start processing: {} #total dialogs: {}".format(dataset_name, len(data)))
+            print(f"Start processing: {dataset_name} #total dialogs: {len(data)}")
 
             for index, item in enumerate(data):
 
