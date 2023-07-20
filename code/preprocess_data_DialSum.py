@@ -20,8 +20,8 @@ class PreProcessData(object):
 
     def _load_json(self, path=None):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
-            # return None
+            raise IOError(f'File does not exist: {path}')
+                # return None
         with open(path) as df:
             data = json.loads(df.read())
         return data
@@ -29,7 +29,7 @@ class PreProcessData(object):
     
     def _load_txt(self, path=None, split_tok="\n"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = df.read().strip().split(split_tok)
         return data
@@ -37,7 +37,7 @@ class PreProcessData(object):
 
     def _load_csv(self, path=None, sep="\t"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = pd.read_csv(df, sep=sep)
         return data
@@ -45,11 +45,10 @@ class PreProcessData(object):
 
     def _load_jsonl(self, path=None):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         data = []
         with open(path) as df:
-            for line in df.readlines():
-                data.append(json.loads(line))
+            data.extend(json.loads(line) for line in df)
         return data
 
 
@@ -99,18 +98,17 @@ class PreProcessData(object):
 
 
     def init_dial(self, dial_idx=0, ori_dial_id=""):
-        dial = {
+        return {
             ORI_DIAL_ID: ori_dial_id,
             DIAL_IDX: dial_idx,
             ORI_DIAL_INFO: {},
             LOG: [],
             PROMPT: [],
         }
-        return dial
 
 
     def init_turn(self, turn_id=0, dial_hist=[]):
-        turn = {
+        return {
             TURN_ID: turn_id,
             USR_UTT: "",
             SYS_UTT: "",
@@ -118,7 +116,6 @@ class PreProcessData(object):
             ORI_USR_ANN: {},
             ORI_SYS_ANN: {},
         }
-        return turn
 
 
     def save_dial(self, data, data_name="", file_idx=0, mode="train"):
@@ -278,8 +275,12 @@ class PreProcessData(object):
                     else:
                         new_turn[SYS_UTT] = utt.strip().replace("  ", " ")
                         new_turn[ORI_SYS_ANN]['speaker'] = speaker
-                        dial_hist.append("<USER> " + new_turn[USR_UTT])
-                        dial_hist.append("<SYSTEM> " + new_turn[SYS_UTT])
+                        dial_hist.extend(
+                            (
+                                "<USER> " + new_turn[USR_UTT],
+                                "<SYSTEM> " + new_turn[SYS_UTT],
+                            )
+                        )
                         new_dial[LOG].append(new_turn)
 
                 new_data[new_dial_id] = new_dial
@@ -287,7 +288,7 @@ class PreProcessData(object):
                     self.save_dial(new_data, data_name=data_name, file_idx=file_idx, mode=mode)
                     new_data = {} # reset
                     file_idx += 1
-        
+
         self.save_original_examples(data["train"][:5], data_name)
         self.save_converted_examples(data_name)
         print("*"*10, f"finishing processing dataset {data_name}", "*"*10)
@@ -329,8 +330,12 @@ class PreProcessData(object):
                     else:
                         new_turn[SYS_UTT] = utt.strip()
                         new_turn[ORI_SYS_ANN]['speaker'] = speaker.replace("#","")
-                        dial_hist.append("<USER> " + new_turn[USR_UTT])
-                        dial_hist.append("<SYSTEM> " + new_turn[SYS_UTT])
+                        dial_hist.extend(
+                            (
+                                "<USER> " + new_turn[USR_UTT],
+                                "<SYSTEM> " + new_turn[SYS_UTT],
+                            )
+                        )
                         new_dial[LOG].append(new_turn)
 
                 new_data[new_dial_id] = new_dial
@@ -338,7 +343,7 @@ class PreProcessData(object):
                     self.save_dial(new_data, data_name=data_name, file_idx=file_idx, mode=mode)
                     new_data = {} # reset
                     file_idx += 1
-        
+
             if mode == "train": self.save_original_examples(data[:5], data_name)
         self.save_converted_examples(data_name)
         self.copy_related_files(data_name, ['Baseline'])
@@ -480,9 +485,10 @@ class PreProcessData(object):
             for key_ in dial:
                 if key_ in ["id", "utt", "speaker"]: continue
                 new_dial[ORI_DIAL_INFO][key_] = dial[key_]
-            dialog_log = []
-            for idx in range(len(dial["utt"])):
-                dialog_log.append(dial["speaker"][idx] + " : " + dial["utt"][idx])
+            dialog_log = [
+                dial["speaker"][idx] + " : " + dial["utt"][idx]
+                for idx in range(len(dial["utt"]))
+            ]
             new_dial[ORI_DIAL_INFO]["dialog history"] = dialog_log
 
             mode = split_id2mode.get(dial["id"], "train")
@@ -581,9 +587,6 @@ class PreProcessData(object):
         # self.icsi()
         # self.qmsum()
         self.mediasum()
-        # self.crd3()
-        # self.ectsum()
-        pass
 
 
     def copy_example(self):

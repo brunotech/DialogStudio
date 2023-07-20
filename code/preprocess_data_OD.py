@@ -18,8 +18,8 @@ class PreProcessData(object):
 
     def _load_json(self, path=None):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
-            # return None
+            raise IOError(f'File does not exist: {path}')
+                # return None
         with open(path) as df:
             data = json.loads(df.read())
         return data
@@ -27,7 +27,7 @@ class PreProcessData(object):
     
     def _load_txt(self, path=None, split_tok="\n", encoding="utf-8"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path, 'r', encoding=encoding) as df:
             data = df.read().strip().split(split_tok)
         return data
@@ -35,7 +35,7 @@ class PreProcessData(object):
 
     def _load_csv(self, path=None, sep="\t"):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         with open(path) as df:
             data = pd.read_csv(df, sep=sep)
         return data
@@ -43,11 +43,10 @@ class PreProcessData(object):
 
     def _load_jsonl(self, path=None):
         if path is None or not os.path.exists(path):
-            raise IOError('File does not exist: %s' % path)
+            raise IOError(f'File does not exist: {path}')
         data = []
         with open(path) as df:
-            for line in df.readlines():
-                data.append(json.loads(line))
+            data.extend(json.loads(line) for line in df)
         return data
 
 
@@ -97,18 +96,17 @@ class PreProcessData(object):
 
 
     def init_dial(self, dial_idx=0, ori_dial_id=""):
-        dial = {
+        return {
             ORI_DIAL_ID: ori_dial_id,
             DIAL_IDX: int(dial_idx),
             ORI_DIAL_INFO: {},
             LOG: [],
             PROMPT: [],
         }
-        return dial
 
 
     def init_turn(self, turn_id=0, dial_hist=[]):
-        turn = {
+        return {
             TURN_ID: int(turn_id),
             USR_UTT: "",
             SYS_UTT: "",
@@ -116,7 +114,6 @@ class PreProcessData(object):
             ORI_USR_ANN: {},
             ORI_SYS_ANN: {},
         }
-        return turn
 
 
     def save_dial(self, data, data_name="", file_idx=0, mode="train"):
@@ -157,7 +154,7 @@ class PreProcessData(object):
         mode = "train"
         data = self._load_jsonl(os.path.join(self.data_dir, data_name, "data.jsonl"))
         new_data, file_idx, dial_idx = {}, 1, 1
-        for dial in (data):
+        for dial in data:
             new_dial = self.init_dial(dial_idx=dial_idx)
             new_dial_id = f"{data_name}--{mode}--{dial_idx}"
             for key in dial:
@@ -181,13 +178,12 @@ class PreProcessData(object):
                     if len(utt.split(":")[0].split()) == 1:
                         # might have a third speaker
                         raise ValueError("Unknown Speaker ... ")
+                    if not turn_idx: continue
+                    if new_turn[SYS_UTT]:
+                        new_turn[SYS_UTT] += " " + utt
                     else:
-                        if not turn_idx: continue
-                        if new_turn[SYS_UTT]:
-                            new_turn[SYS_UTT] += " " + utt
-                        else:
-                            new_turn[USR_UTT] += " " + utt
-                        dial_hist[-1] += " " + utt
+                        new_turn[USR_UTT] += " " + utt
+                    dial_hist[-1] += " " + utt
             if multiparty: continue
             new_data[new_dial_id] = new_dial
             if (dial_idx) % 10000 == 0:
@@ -351,8 +347,6 @@ class PreProcessData(object):
                     new_dial[ORI_DIAL_ID] = data_df["conv_id"][row_id]
                     new_dial[ORI_DIAL_INFO]["context"] = data_df["context"][row_id]
                     new_dial[ORI_DIAL_INFO]["selfeval"] = data_df["selfeval"][row_id]
-                    dial_hist = []
-
                     # process the first turn
                     new_turn = self.init_turn(turn_id=1)
                     new_turn[USR_UTT] = data_df["prompt"][row_id].strip()
@@ -362,8 +356,10 @@ class PreProcessData(object):
                     new_turn[ORI_SYS_ANN]["tags"] = data_df["tags"][row_id]
                     new_turn[ORI_SYS_ANN]["speaker_idx"] = int(data_df["speaker_idx"][row_id])
 
-                    dial_hist.append(f"<{SPEAKER1.upper()}> " + new_turn[USR_UTT])
-                    dial_hist.append(f"<{SPEAKER2.upper()}> " + new_turn[SYS_UTT])
+                    dial_hist = [
+                        f"<{SPEAKER1.upper()}> " + new_turn[USR_UTT],
+                        f"<{SPEAKER2.upper()}> " + new_turn[SYS_UTT],
+                    ]
                     # speakers.append(data_df["speaker_idx"][row_id])
                     # in the first turn, the first speaker's utt is in the prompt and 
                     # utterance contains the utt from the second speaker
@@ -371,30 +367,27 @@ class PreProcessData(object):
                     new_dial[LOG].append(new_turn)
                     new_turn = self.init_turn(turn_id=(int(data_df["utterance_idx"][row_id])+1)//2+1)
                     new_turn[DIAL_HIST] = " ".join(dial_hist)
-                
+
                 elif data_df["speaker_idx"][row_id] == second_speaker_id:
-                    if not new_turn[USR_UTT]: # in this case, consecutive turns from system side happens, we add utt directly to new_dial[LOG][-1]
-                        new_dial[LOG][-1][SYS_UTT] += " " + utt
-                        dial_hist[-1] += " " + utt
-                        new_turn[DIAL_HIST] = " ".join(dial_hist)
-                    else:
+                    if new_turn[USR_UTT]:
                         new_turn[SYS_UTT] = utt
                         new_turn[ORI_SYS_ANN]["tags"] = data_df["tags"][row_id]
                         new_turn[ORI_SYS_ANN]["speaker_idx"] = int(data_df["speaker_idx"][row_id])
                         dial_hist.append(f"<{SPEAKER2.upper()}> " + new_turn[SYS_UTT])
                         new_dial[LOG].append(new_turn)
                         new_turn = self.init_turn(turn_id=(int(data_df["utterance_idx"][row_id])+1)//2+1)
-                        new_turn[DIAL_HIST] = " ".join(dial_hist)
-
-                else:
-                    if not new_turn[USR_UTT]:
-                        new_turn[USR_UTT] = utt
-                        new_turn[ORI_USR_ANN]["tags"] = data_df["tags"][row_id]
-                        new_turn[ORI_USR_ANN]["speaker_idx"] = int(data_df["speaker_idx"][row_id])
-                        dial_hist.append(f"<{SPEAKER1.upper()}> " + new_turn[USR_UTT])
-                    else: # in this case, consecutive turns from user side happens, we add utt directly to new_turn
-                        new_turn[USR_UTT] += " " + utt
+                    else: # in this case, consecutive turns from system side happens, we add utt directly to new_dial[LOG][-1]
+                        new_dial[LOG][-1][SYS_UTT] += " " + utt
                         dial_hist[-1] += " " + utt
+                    new_turn[DIAL_HIST] = " ".join(dial_hist)
+                elif not new_turn[USR_UTT]:
+                    new_turn[USR_UTT] = utt
+                    new_turn[ORI_USR_ANN]["tags"] = data_df["tags"][row_id]
+                    new_turn[ORI_USR_ANN]["speaker_idx"] = int(data_df["speaker_idx"][row_id])
+                    dial_hist.append(f"<{SPEAKER1.upper()}> " + new_turn[USR_UTT])
+                else: # in this case, consecutive turns from user side happens, we add utt directly to new_turn
+                    new_turn[USR_UTT] += " " + utt
+                    dial_hist[-1] += " " + utt
 
                 if row_id == len(data_df)-1 or data_df["utterance_idx"][row_id+1] == 1:
                     # append the rest dialog in case ends with user side
@@ -403,7 +396,7 @@ class PreProcessData(object):
 
                     new_dial_id = f"{data_name}--{mode}--{dial_idx}"
                     new_data[new_dial_id] = new_dial
-                    
+
                     if dial_idx % 10000 == 0:
                         self.save_dial(new_data, data_name=data_name, file_idx=file_idx, mode=mode)
                         new_data = {} # reset
